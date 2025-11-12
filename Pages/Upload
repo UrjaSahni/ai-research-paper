@@ -1,1 +1,269 @@
+import React, { useState, useCallback } from "react";
+import { base44 } from "@/api/base44Client";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Upload as UploadIcon, FileText, Loader2, CheckCircle, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useNavigate } from "react-router-dom";
+import { createPageUrl } from "@/utils";
+import { Progress } from "@/components/ui/progress";
 
+export default function Upload() {
+  const navigate = useNavigate();
+  const [files, setFiles] = useState([]);
+  const [dragActive, setDragActive] = useState(false);
+  const [processing, setProcessing] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(false);
+
+  const handleDrag = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  }, []);
+
+  const handleDrop = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    const droppedFiles = Array.from(e.dataTransfer.files).filter(
+      file => file.type === "application/pdf"
+    );
+
+    if (droppedFiles.length === 0) {
+      setError("Please upload PDF files only");
+      return;
+    }
+
+    setFiles(droppedFiles);
+    setError(null);
+  }, []);
+
+  const handleFileInput = (e) => {
+    const selectedFiles = Array.from(e.target.files).filter(
+      file => file.type === "application/pdf"
+    );
+
+    if (selectedFiles.length === 0) {
+      setError("Please upload PDF files only");
+      return;
+    }
+
+    setFiles(selectedFiles);
+    setError(null);
+  };
+
+  const processPaper = async (file) => {
+    setProcessing(true);
+    setProgress(10);
+    setError(null);
+
+    const progressInterval = setInterval(() => {
+      setProgress(prev => Math.min(prev + 5, 90));
+    }, 500);
+
+    try {
+      // Upload file
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      setProgress(40);
+
+      // Extract data using AI
+      const extractionResult = await base44.integrations.Core.ExtractDataFromUploadedFile({
+        file_url,
+        json_schema: {
+          type: "object",
+          properties: {
+            title: { type: "string" },
+            authors: { type: "array", items: { type: "string" } },
+            abstract: { type: "string" },
+            year: { type: "number" },
+            keywords: { type: "array", items: { type: "string" } }
+          }
+        }
+      });
+
+      setProgress(60);
+
+      let extractedData = {};
+      if (extractionResult.status === "success" && extractionResult.output) {
+        extractedData = extractionResult.output;
+      }
+
+      // Generate comprehensive summary using AI
+      const summaryPrompt = `Analyze this research paper and provide:
+1. An executive summary (2-3 sentences)
+2. Key findings (list of main discoveries/contributions)
+3. Methodology used
+4. Main sections with summaries
+
+Paper Details:
+Title: ${extractedData.title || 'Unknown'}
+Abstract: ${extractedData.abstract || 'Not available'}`;
+
+      const summaryResult = await base44.integrations.Core.InvokeLLM({
+        prompt: summaryPrompt,
+        response_json_schema: {
+          type: "object",
+          properties: {
+            executive_summary: { type: "string" },
+            key_findings: { type: "array", items: { type: "string" } },
+            methodology: { type: "string" },
+            sections: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  title: { type: "string" },
+                  summary: { type: "string" }
+                }
+              }
+            },
+            category: { type: "string" }
+          }
+        },
+        file_urls: [file_url]
+      });
+
+      setProgress(90);
+
+      // Save to database
+      await base44.entities.ResearchPaper.create({
+        title: extractedData.title || file.name.replace('.pdf', ''),
+        authors: extractedData.authors || [],
+        abstract: extractedData.abstract || "",
+        year: extractedData.year || new Date().getFullYear(),
+        file_url,
+        executive_summary: summaryResult.executive_summary,
+        key_findings: summaryResult.key_findings || [],
+        methodology: summaryResult.methodology,
+        sections: summaryResult.sections || [],
+        keywords: extractedData.keywords || [],
+        category: summaryResult.category || "Other",
+        status: "completed"
+      });
+
+      clearInterval(progressInterval);
+      setProgress(100);
+      setSuccess(true);
+
+      setTimeout(() => {
+        navigate(createPageUrl("Library"));
+      }, 1500);
+    } catch (err) {
+      clearInterval(progressInterval);
+      setError("Error processing paper. Please try again.");
+      console.error("Error:", err);
+      setProcessing(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen p-6 md:p-8">
+      <div className="max-w-3xl mx-auto space-y-8">
+        <div>
+          <h1 className="text-4xl font-bold text-slate-900 mb-2">Upload Research Papers</h1>
+          <p className="text-slate-600">Upload PDFs for AI-powered analysis and summarization</p>
+        </div>
+
+        {error && (
+          <Alert variant="destructive" className="border-red-200 bg-red-50">
+            <AlertCircle className="h-5 w-5" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        {success && (
+          <Alert className="border-green-200 bg-green-50 text-green-900">
+            <CheckCircle className="h-5 w-5 text-green-600" />
+            <AlertDescription>Paper processed successfully! Redirecting to library...</AlertDescription>
+          </Alert>
+        )}
+
+        <Card className="border-none shadow-2xl bg-white/80 backdrop-blur-xl">
+          <CardHeader>
+            <CardTitle className="text-2xl">Upload Your Paper</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {!processing ? (
+              <div
+                onDragEnter={handleDrag}
+                onDragLeave={handleDrag}
+                onDragOver={handleDrag}
+                onDrop={handleDrop}
+                className={`border-2 border-dashed rounded-2xl p-12 text-center transition-all duration-200 ${
+                  dragActive 
+                    ? "border-blue-500 bg-blue-50" 
+                    : "border-slate-300 hover:border-slate-400 bg-slate-50"
+                }`}
+              >
+                <input
+                  type="file"
+                  multiple
+                  accept=".pdf"
+                  onChange={handleFileInput}
+                  className="hidden"
+                  id="file-upload"
+                />
+                <UploadIcon className="w-16 h-16 mx-auto mb-4 text-slate-400" />
+                <h3 className="text-xl font-semibold text-slate-900 mb-2">
+                  Drop your PDF here
+                </h3>
+                <p className="text-slate-600 mb-6">or click to browse files</p>
+                <label htmlFor="file-upload">
+                  <Button asChild className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 cursor-pointer">
+                    <span>
+                      <FileText className="w-5 h-5 mr-2" />
+                      Select PDF
+                    </span>
+                  </Button>
+                </label>
+
+                {files.length > 0 && (
+                  <div className="mt-8 space-y-3">
+                    {files.map((file, index) => (
+                      <div key={index} className="flex items-center justify-between p-4 bg-white rounded-xl border border-slate-200">
+                        <div className="flex items-center gap-3">
+                          <FileText className="w-8 h-8 text-blue-600" />
+                          <div className="text-left">
+                            <p className="font-medium text-slate-900">{file.name}</p>
+                            <p className="text-sm text-slate-500">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    <Button
+                      onClick={() => processPaper(files[0])}
+                      className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 mt-4"
+                    >
+                      Process Paper with AI
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="py-12 space-y-6">
+                <div className="flex items-center justify-center">
+                  <Loader2 className="w-16 h-16 animate-spin text-blue-600" />
+                </div>
+                <div className="text-center space-y-2">
+                  <h3 className="text-xl font-semibold text-slate-900">Processing Your Paper</h3>
+                  <p className="text-slate-600">AI is analyzing the content, extracting insights...</p>
+                </div>
+                <div className="max-w-md mx-auto">
+                  <Progress value={progress} className="h-3" />
+                  <p className="text-center text-sm text-slate-500 mt-2">{progress}%</p>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
