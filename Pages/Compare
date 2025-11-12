@@ -1,0 +1,224 @@
+import React, { useState } from "react";
+import { base44 } from "@/api/base44Client";
+import { useQuery } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { GitCompare, Loader2, FileText, CheckCircle, XCircle, MinusCircle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import ComparisonResults from "../components/compare/ComparisonResults";
+
+export default function Compare() {
+  const [selectedPapers, setSelectedPapers] = useState([]);
+  const [comparing, setComparing] = useState(false);
+  const [comparisonResult, setComparisonResult] = useState(null);
+
+  const { data: papers, isLoading } = useQuery({
+    queryKey: ['papers'],
+    queryFn: () => base44.entities.ResearchPaper.list("-created_date"),
+    initialData: [],
+  });
+
+  const completedPapers = papers.filter(p => p.status === "completed");
+
+  const togglePaper = (paperId) => {
+    setSelectedPapers(prev => 
+      prev.includes(paperId) 
+        ? prev.filter(id => id !== paperId)
+        : [...prev, paperId]
+    );
+  };
+
+  const comparePapers = async () => {
+    if (selectedPapers.length < 2) return;
+
+    setComparing(true);
+    const selectedPaperObjects = papers.filter(p => selectedPapers.includes(p.id));
+
+    const papersText = selectedPaperObjects.map((p, idx) => 
+      `Paper ${idx + 1}: "${p.title}"
+Authors: ${p.authors?.join(", ") || "Unknown"}
+Executive Summary: ${p.executive_summary || "Not available"}
+Key Findings: ${p.key_findings?.join("; ") || "Not available"}
+Methodology: ${p.methodology || "Not available"}`
+    ).join("\n\n");
+
+    const prompt = `Compare the following research papers and provide:
+1. Areas of Agreement: Where the papers agree or support each other's findings
+2. Contradictions: Where the papers disagree or present conflicting results
+3. Research Gaps: Areas that are under-explored or missing across these papers
+4. Common Themes: Recurring topics or methodologies
+5. Unique Contributions: What each paper uniquely brings to the field
+
+${papersText}
+
+Provide a detailed, structured analysis.`;
+
+    const result = await base44.integrations.Core.InvokeLLM({
+      prompt,
+      response_json_schema: {
+        type: "object",
+        properties: {
+          agreements: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                title: { type: "string" },
+                description: { type: "string" },
+                papers: { type: "array", items: { type: "string" } }
+              }
+            }
+          },
+          contradictions: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                title: { type: "string" },
+                description: { type: "string" },
+                conflicting_views: { type: "array", items: { type: "string" } }
+              }
+            }
+          },
+          research_gaps: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                gap: { type: "string" },
+                potential_impact: { type: "string" }
+              }
+            }
+          },
+          common_themes: { type: "array", items: { type: "string" } },
+          unique_contributions: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                paper: { type: "string" },
+                contribution: { type: "string" }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    setComparisonResult({
+      papers: selectedPaperObjects,
+      analysis: result
+    });
+    setComparing(false);
+  };
+
+  return (
+    <div className="min-h-screen p-6 md:p-8">
+      <div className="max-w-7xl mx-auto space-y-8">
+        <div>
+          <h1 className="text-4xl font-bold text-slate-900 mb-2">Compare Papers</h1>
+          <p className="text-slate-600">Select papers to analyze agreements, contradictions, and research gaps</p>
+        </div>
+
+        {!comparisonResult ? (
+          <>
+            <Alert className="bg-blue-50 border-blue-200">
+              <AlertDescription className="text-blue-900">
+                Select at least 2 papers to begin comparison
+              </AlertDescription>
+            </Alert>
+
+            <Card className="border-none shadow-xl bg-white/80 backdrop-blur-xl">
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <span>Select Papers ({selectedPapers.length} selected)</span>
+                  {selectedPapers.length >= 2 && (
+                    <Button
+                      onClick={comparePapers}
+                      disabled={comparing}
+                      className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                    >
+                      {comparing ? (
+                        <>
+                          <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                          Analyzing...
+                        </>
+                      ) : (
+                        <>
+                          <GitCompare className="w-5 h-5 mr-2" />
+                          Compare Papers
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {isLoading ? (
+                  <div className="space-y-4">
+                    {[1, 2, 3].map(i => (
+                      <div key={i} className="h-24 bg-slate-100 rounded-xl animate-pulse" />
+                    ))}
+                  </div>
+                ) : completedPapers.length === 0 ? (
+                  <div className="text-center py-12">
+                    <FileText className="w-16 h-16 mx-auto text-slate-300 mb-4" />
+                    <p className="text-slate-600">No papers available for comparison</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {completedPapers.map(paper => (
+                      <div
+                        key={paper.id}
+                        className={`p-6 rounded-xl border-2 transition-all duration-200 cursor-pointer ${
+                          selectedPapers.includes(paper.id)
+                            ? "border-blue-500 bg-blue-50"
+                            : "border-slate-200 hover:border-slate-300 bg-white"
+                        }`}
+                        onClick={() => togglePaper(paper.id)}
+                      >
+                        <div className="flex items-start gap-4">
+                          <Checkbox
+                            checked={selectedPapers.includes(paper.id)}
+                            onCheckedChange={() => togglePaper(paper.id)}
+                            className="mt-1"
+                          />
+                          <div className="flex-1">
+                            <h3 className="text-lg font-semibold text-slate-900 mb-2">{paper.title}</h3>
+                            <div className="flex flex-wrap gap-2 mb-2">
+                              {paper.category && (
+                                <Badge variant="outline" className="border-blue-200 text-blue-700 bg-blue-50">
+                                  {paper.category}
+                                </Badge>
+                              )}
+                              {paper.year && (
+                                <Badge variant="outline">{paper.year}</Badge>
+                              )}
+                            </div>
+                            {paper.authors && paper.authors.length > 0 && (
+                              <p className="text-sm text-slate-600">{paper.authors.join(", ")}</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </>
+        ) : (
+          <ComparisonResults
+            result={comparisonResult}
+            onReset={() => {
+              setComparisonResult(null);
+              setSelectedPapers([]);
+            }}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
