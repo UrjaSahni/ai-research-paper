@@ -1,0 +1,71 @@
+import React from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { FileText, Users, Calendar, ArrowRight, Loader2 } from "lucide-react";
+import { Link } from "react-router-dom";
+import { createPageUrl } from "@/utils";
+
+export default function PaperCard({ paper }) {
+  return (
+    <Card className="group border-none shadow-xl bg-white/80 backdrop-blur-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
+      <CardHeader>
+        <div className="flex items-start justify-between gap-4 mb-3">
+          <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
+            <FileText className="w-6 h-6 text-white" />
+          </div>
+          {paper.status === "processing" ? (
+            <Badge variant="outline" className="border-amber-200 text-amber-700 bg-amber-50">
+              <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+              Processing
+            </Badge>
+          ) : (
+            <Badge className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white border-0">
+              Analyzed
+            </Badge>
+          )}
+        </div>
+        <CardTitle className="text-xl leading-tight group-hover:text-blue-600 transition-colors line-clamp-2">
+          {paper.title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {paper.authors && paper.authors.length > 0 && (
+          <div className="flex items-center gap-2 text-sm text-slate-600">
+            <Users className="w-4 h-4 flex-shrink-0" />
+            <span className="line-clamp-1">{paper.authors.join(", ")}</span>
+          </div>
+        )}
+        
+        <div className="flex items-center gap-3 text-sm text-slate-600">
+          {paper.year && (
+            <div className="flex items-center gap-2">
+              <Calendar className="w-4 h-4" />
+              <span>{paper.year}</span>
+            </div>
+          )}
+          {paper.category && (
+            <Badge variant="outline" className="border-slate-200">
+              {paper.category}
+            </Badge>
+          )}
+        </div>
+
+        {paper.executive_summary && (
+          <p className="text-sm text-slate-700 line-clamp-3 leading-relaxed">
+            {paper.executive_summary}
+          </p>
+        )}
+
+        {paper.status === "completed" && (
+          <Link to={createPageUrl("Summary") + `?id=${paper.id}`}>
+            <Button className="w-full mt-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 group-hover:shadow-lg transition-all">
+              View Analysis
+              <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+            </Button>
+          </Link>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
