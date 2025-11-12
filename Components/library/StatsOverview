@@ -1,0 +1,72 @@
+import React from "react";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { FileText, CheckCircle, TrendingUp, BookOpen } from "lucide-react";
+
+export default function StatsOverview({ papers }) {
+  const completedPapers = papers.filter(p => p.status === "completed");
+  const processingPapers = papers.filter(p => p.status === "processing");
+  const totalFindings = completedPapers.reduce((sum, p) => sum + (p.key_findings?.length || 0), 0);
+  
+  const categories = {};
+  completedPapers.forEach(p => {
+    if (p.category) {
+      categories[p.category] = (categories[p.category] || 0) + 1;
+    }
+  });
+  const topCategory = Object.entries(categories).sort((a, b) => b[1] - a[1])[0];
+
+  const stats = [
+    {
+      title: "Total Papers",
+      value: papers.length,
+      icon: FileText,
+      gradient: "from-blue-500 to-cyan-500",
+      bgGradient: "from-blue-50 to-cyan-50"
+    },
+    {
+      title: "Analyzed",
+      value: completedPapers.length,
+      icon: CheckCircle,
+      gradient: "from-emerald-500 to-teal-500",
+      bgGradient: "from-emerald-50 to-teal-50"
+    },
+    {
+      title: "Key Findings",
+      value: totalFindings,
+      icon: TrendingUp,
+      gradient: "from-violet-500 to-purple-500",
+      bgGradient: "from-violet-50 to-purple-50"
+    },
+    {
+      title: "Top Category",
+      value: topCategory ? topCategory[0] : "N/A",
+      icon: BookOpen,
+      gradient: "from-orange-500 to-pink-500",
+      bgGradient: "from-orange-50 to-pink-50",
+      isText: true
+    }
+  ];
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {stats.map((stat, index) => (
+        <Card key={index} className={`border-none shadow-xl bg-gradient-to-br ${stat.bgGradient} relative overflow-hidden group hover:shadow-2xl transition-all duration-300`}>
+          <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${stat.gradient} opacity-10 rounded-full transform translate-x-10 -translate-y-10 group-hover:scale-150 transition-transform duration-500`} />
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-medium text-slate-600">{stat.title}</CardTitle>
+              <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${stat.gradient} bg-opacity-20 flex items-center justify-center`}>
+                <stat.icon className={`w-5 h-5 bg-gradient-to-br ${stat.gradient} bg-clip-text text-transparent`} style={{WebkitTextFillColor: 'transparent'}} />
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className={`text-3xl font-bold bg-gradient-to-r ${stat.gradient} bg-clip-text text-transparent ${stat.isText ? 'text-xl' : ''}`}>
+              {stat.value}
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
