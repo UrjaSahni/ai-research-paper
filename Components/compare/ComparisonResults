@@ -1,0 +1,203 @@
+import React from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { CheckCircle, XCircle, AlertTriangle, Lightbulb, ArrowLeft, FileText } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+
+export default function ComparisonResults({ result, onReset }) {
+  const { papers, analysis } = result;
+
+  return (
+    <div className="space-y-8">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-3xl font-bold text-slate-900 mb-2">Comparison Analysis</h2>
+          <p className="text-slate-600">Analyzing {papers.length} research papers</p>
+        </div>
+        <Button onClick={onReset} variant="outline" className="rounded-xl">
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          New Comparison
+        </Button>
+      </div>
+
+      {/* Selected Papers */}
+      <Card className="border-none shadow-xl bg-white/80 backdrop-blur-xl">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="w-5 h-5" />
+            Papers Being Compared
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {papers.map((paper, index) => (
+              <div key={paper.id} className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold flex-shrink-0">
+                    {index + 1}
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-slate-900">{paper.title}</h4>
+                    {paper.authors && paper.authors.length > 0 && (
+                      <p className="text-sm text-slate-600 mt-1">{paper.authors.join(", ")}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Common Themes */}
+      {analysis.common_themes && analysis.common_themes.length > 0 && (
+        <Card className="border-none shadow-xl bg-gradient-to-br from-purple-50 to-pink-50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-2xl">
+              <Lightbulb className="w-6 h-6 text-purple-600" />
+              Common Themes
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {analysis.common_themes.map((theme, index) => (
+                <Badge key={index} className="bg-gradient-to-r from-purple-600 to-pink-600 text-white text-sm py-2 px-4">
+                  {theme}
+                </Badge>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Agreements */}
+      {analysis.agreements && analysis.agreements.length > 0 && (
+        <Card className="border-none shadow-xl bg-white/80 backdrop-blur-xl">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-2xl">
+              <CheckCircle className="w-6 h-6 text-emerald-600" />
+              Areas of Agreement
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {analysis.agreements.map((agreement, index) => (
+              <div key={index}>
+                {index > 0 && <Separator className="my-6" />}
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold flex-shrink-0">
+                      {index + 1}
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-lg font-semibold text-slate-900 mb-2">{agreement.title}</h4>
+                      <p className="text-slate-700 leading-relaxed">{agreement.description}</p>
+                      {agreement.papers && agreement.papers.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-3">
+                          {agreement.papers.map((paper, pIdx) => (
+                            <Badge key={pIdx} variant="outline" className="border-emerald-200 text-emerald-700 bg-emerald-50">
+                              {paper}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Contradictions */}
+      {analysis.contradictions && analysis.contradictions.length > 0 && (
+        <Card className="border-none shadow-xl bg-white/80 backdrop-blur-xl">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-2xl">
+              <XCircle className="w-6 h-6 text-red-600" />
+              Contradictions
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {analysis.contradictions.map((contradiction, index) => (
+              <div key={index}>
+                {index > 0 && <Separator className="my-6" />}
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-full bg-red-100 text-red-700 flex items-center justify-center font-bold flex-shrink-0">
+                      {index + 1}
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-lg font-semibold text-slate-900 mb-2">{contradiction.title}</h4>
+                      <p className="text-slate-700 leading-relaxed mb-3">{contradiction.description}</p>
+                      {contradiction.conflicting_views && contradiction.conflicting_views.length > 0 && (
+                        <div className="space-y-2 mt-3 pl-4 border-l-2 border-red-200">
+                          {contradiction.conflicting_views.map((view, vIdx) => (
+                            <p key={vIdx} className="text-sm text-slate-600 leading-relaxed">• {view}</p>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Research Gaps */}
+      {analysis.research_gaps && analysis.research_gaps.length > 0 && (
+        <Card className="border-none shadow-xl bg-gradient-to-br from-amber-50 to-orange-50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-2xl">
+              <AlertTriangle className="w-6 h-6 text-amber-600" />
+              Research Gaps
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {analysis.research_gaps.map((gap, index) => (
+              <div key={index}>
+                {index > 0 && <Separator className="my-6" />}
+                <div className="space-y-2">
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center font-bold flex-shrink-0">
+                      {index + 1}
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-lg font-semibold text-slate-900 mb-2">{gap.gap}</h4>
+                      <p className="text-slate-700 leading-relaxed">
+                        <span className="font-medium text-amber-700">Potential Impact:</span> {gap.potential_impact}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Unique Contributions */}
+      {analysis.unique_contributions && analysis.unique_contributions.length > 0 && (
+        <Card className="border-none shadow-xl bg-white/80 backdrop-blur-xl">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-2xl">
+              <Lightbulb className="w-6 h-6 text-blue-600" />
+              Unique Contributions
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {analysis.unique_contributions.map((contribution, index) => (
+              <div key={index} className="p-4 rounded-xl bg-blue-50 border border-blue-200">
+                <h4 className="font-semibold text-blue-900 mb-2">{contribution.paper}</h4>
+                <p className="text-slate-700 leading-relaxed">{contribution.contribution}</p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
