@@ -1,0 +1,95 @@
+{
+  "name": "ResearchPaper",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Title of the research paper"
+    },
+    "authors": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of authors"
+    },
+    "abstract": {
+      "type": "string",
+      "description": "Paper abstract"
+    },
+    "year": {
+      "type": "number",
+      "description": "Publication year"
+    },
+    "file_url": {
+      "type": "string",
+      "description": "URL to the uploaded PDF"
+    },
+    "executive_summary": {
+      "type": "string",
+      "description": "High-level summary of the paper"
+    },
+    "key_findings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Main findings from the paper"
+    },
+    "methodology": {
+      "type": "string",
+      "description": "Research methodology used"
+    },
+    "sections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          }
+        }
+      },
+      "description": "Section-wise summaries"
+    },
+    "keywords": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Key topics and keywords"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "Computer Science",
+        "Medicine",
+        "Physics",
+        "Biology",
+        "Chemistry",
+        "Social Sciences",
+        "Engineering",
+        "Mathematics",
+        "Other"
+      ],
+      "description": "Research category"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "processing",
+        "completed",
+        "error"
+      ],
+      "default": "processing",
+      "description": "Processing status"
+    }
+  },
+  "required": [
+    "title",
+    "file_url"
+  ]
+}
