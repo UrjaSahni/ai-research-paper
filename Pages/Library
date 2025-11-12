@@ -1,1 +1,114 @@
+import React, { useState } from "react";
+import { base44 } from "@/api/base44Client";
+import { useQuery } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Link } from "react-router-dom";
+import { createPageUrl } from "@/utils";
+import { Search, Plus, FileText, Calendar, Users, Tag, TrendingUp } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import PaperCard from "../components/library/PaperCard";
+import StatsOverview from "../components/library/StatsOverview";
 
+export default function Library() {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("all");
+
+  const { data: papers, isLoading } = useQuery({
+    queryKey: ['papers'],
+    queryFn: () => base44.entities.ResearchPaper.list("-created_date"),
+    initialData: [],
+  });
+
+  const filteredPapers = papers.filter(paper => {
+    const matchesSearch = paper.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          paper.authors?.some(a => a.toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchesCategory = selectedCategory === "all" || paper.category === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
+
+  const categories = ["all", ...new Set(papers.map(p => p.category).filter(Boolean))];
+  const completedPapers = papers.filter(p => p.status === "completed");
+
+  return (
+    <div className="min-h-screen p-6 md:p-8">
+      <div className="max-w-7xl mx-auto space-y-8">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+          <div>
+            <h1 className="text-4xl font-bold text-slate-900 mb-2">Research Library</h1>
+            <p className="text-slate-600">Your collection of analyzed research papers</p>
+          </div>
+          <Link to={createPageUrl("Upload")}>
+            <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-500/30 transition-all duration-200">
+              <Plus className="w-5 h-5 mr-2" />
+              Upload Paper
+            </Button>
+          </Link>
+        </div>
+
+        {/* Stats Overview */}
+        <StatsOverview papers={papers} />
+
+        {/* Search and Filters */}
+        <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl border border-slate-200 p-6">
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
+              <Input
+                placeholder="Search papers by title or author..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-12 h-12 border-slate-200 focus:border-blue-500 rounded-xl"
+              />
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              {categories.map(cat => (
+                <Button
+                  key={cat}
+                  variant={selectedCategory === cat ? "default" : "outline"}
+                  onClick={() => setSelectedCategory(cat)}
+                  className={selectedCategory === cat 
+                    ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl"
+                    : "rounded-xl border-slate-200 hover:bg-slate-100"
+                  }
+                >
+                  {cat === "all" ? "All Papers" : cat}
+                </Button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Papers Grid */}
+        {isLoading ? (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="bg-white/80 rounded-2xl h-80 animate-pulse border border-slate-200" />
+            ))}
+          </div>
+        ) : filteredPapers.length === 0 ? (
+          <div className="text-center py-20">
+            <FileText className="w-20 h-20 mx-auto text-slate-300 mb-4" />
+            <h3 className="text-2xl font-semibold text-slate-900 mb-2">No papers found</h3>
+            <p className="text-slate-600 mb-6">
+              {searchTerm ? "Try adjusting your search" : "Start by uploading your first research paper"}
+            </p>
+            <Link to={createPageUrl("Upload")}>
+              <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
+                <Plus className="w-5 h-5 mr-2" />
+                Upload Paper
+              </Button>
+            </Link>
+          </div>
+        ) : (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredPapers.map(paper => (
+              <PaperCard key={paper.id} paper={paper} />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
