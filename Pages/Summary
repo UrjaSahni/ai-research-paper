@@ -1,0 +1,195 @@
+import React from "react";
+import { base44 } from "@/api/base44Client";
+import { useQuery } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ArrowLeft, FileText, Users, Calendar, Tag, ExternalLink, BookOpen } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { createPageUrl } from "@/utils";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
+
+export default function Summary() {
+  const navigate = useNavigate();
+  const urlParams = new URLSearchParams(window.location.search);
+  const paperId = urlParams.get("id");
+
+  const { data: paper, isLoading } = useQuery({
+    queryKey: ['paper', paperId],
+    queryFn: async () => {
+      const papers = await base44.entities.ResearchPaper.list();
+      return papers.find(p => p.id === paperId);
+    },
+    enabled: !!paperId
+  });
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen p-6 md:p-8">
+        <div className="max-w-5xl mx-auto space-y-6">
+          <Skeleton className="h-12 w-64" />
+          <Skeleton className="h-96 w-full" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!paper) {
+    return (
+      <div className="min-h-screen p-6 md:p-8 flex items-center justify-center">
+        <div className="text-center">
+          <FileText className="w-20 h-20 mx-auto text-slate-300 mb-4" />
+          <h2 className="text-2xl font-bold text-slate-900 mb-2">Paper not found</h2>
+          <Button onClick={() => navigate(createPageUrl("Library"))}>Back to Library</Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen p-6 md:p-8">
+      <div className="max-w-5xl mx-auto space-y-8">
+        <div className="flex items-center gap-4">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => navigate(createPageUrl("Library"))}
+            className="rounded-xl border-slate-200"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+          <div className="flex-1">
+            <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-2">{paper.title}</h1>
+            <div className="flex flex-wrap gap-3 items-center text-sm text-slate-600">
+              {paper.authors && paper.authors.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4" />
+                  <span>{paper.authors.join(", ")}</span>
+                </div>
+              )}
+              {paper.year && (
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4" />
+                  <span>{paper.year}</span>
+                </div>
+              )}
+              {paper.category && (
+                <Badge className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+                  <Tag className="w-3 h-3 mr-1" />
+                  {paper.category}
+                </Badge>
+              )}
+            </div>
+          </div>
+          {paper.file_url && (
+            <a href={paper.file_url} target="_blank" rel="noopener noreferrer">
+              <Button variant="outline" className="rounded-xl border-slate-200">
+                <ExternalLink className="w-4 h-4 mr-2" />
+                View PDF
+              </Button>
+            </a>
+          )}
+        </div>
+
+        {/* Executive Summary */}
+        <Card className="border-none shadow-xl bg-gradient-to-br from-blue-50 to-indigo-50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-2xl">
+              <BookOpen className="w-6 h-6 text-blue-600" />
+              Executive Summary
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-lg leading-relaxed text-slate-700">
+              {paper.executive_summary || "No summary available"}
+            </p>
+          </CardContent>
+        </Card>
+
+        <div className="grid md:grid-cols-2 gap-6">
+          {/* Abstract */}
+          {paper.abstract && (
+            <Card className="border-none shadow-xl bg-white/80 backdrop-blur-xl">
+              <CardHeader>
+                <CardTitle className="text-xl">Abstract</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-slate-700 leading-relaxed">{paper.abstract}</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Methodology */}
+          {paper.methodology && (
+            <Card className="border-none shadow-xl bg-white/80 backdrop-blur-xl">
+              <CardHeader>
+                <CardTitle className="text-xl">Methodology</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-slate-700 leading-relaxed">{paper.methodology}</p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        {/* Key Findings */}
+        {paper.key_findings && paper.key_findings.length > 0 && (
+          <Card className="border-none shadow-xl bg-white/80 backdrop-blur-xl">
+            <CardHeader>
+              <CardTitle className="text-2xl">Key Findings</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-4">
+                {paper.key_findings.map((finding, index) => (
+                  <li key={index} className="flex gap-4">
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold">
+                      {index + 1}
+                    </div>
+                    <p className="text-slate-700 leading-relaxed flex-1">{finding}</p>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Sections */}
+        {paper.sections && paper.sections.length > 0 && (
+          <Card className="border-none shadow-xl bg-white/80 backdrop-blur-xl">
+            <CardHeader>
+              <CardTitle className="text-2xl">Section Summaries</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {paper.sections.map((section, index) => (
+                <div key={index}>
+                  {index > 0 && <Separator className="my-6" />}
+                  <h3 className="text-xl font-semibold text-slate-900 mb-3">{section.title}</h3>
+                  <p className="text-slate-700 leading-relaxed">{section.summary}</p>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Keywords */}
+        {paper.keywords && paper.keywords.length > 0 && (
+          <Card className="border-none shadow-xl bg-white/80 backdrop-blur-xl">
+            <CardHeader>
+              <CardTitle className="text-xl">Keywords</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-2">
+                {paper.keywords.map((keyword, index) => (
+                  <Badge key={index} variant="outline" className="border-blue-200 text-blue-700 bg-blue-50">
+                    {keyword}
+                  </Badge>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+}
